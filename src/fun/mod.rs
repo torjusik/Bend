@@ -2,6 +2,7 @@ use crate::{
   diagnostics::{Diagnostics, DiagnosticsConfig},
   fun::builtins::*,
   hvm::{self, ast::get_typ},
+  imports::Imports,
   maybe_grow, ENTRY_POINT,
 };
 // use hvmc::ast::get_typ;
@@ -52,20 +53,6 @@ pub struct Book {
 
   /// Imported packages to be loaded in the program
   pub imports: Imports,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Imports {
-  /// Imports declared in the program source
-  pub names: Vec<(Name, Vec<Name>)>,
-
-  /// Map from binded names to source package
-  pub map: HashMap<Name, Name>,
-
-  /// Imported packages to be loaded in the program
-  /// When loaded, the book contents are drained to the parent book,
-  /// adjusting def names and refs accordingly
-  pub pkgs: Vec<(Name, Book)>,
 }
 
 pub type Adts = IndexMap<Name, Adt>;

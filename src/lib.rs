@@ -5,7 +5,6 @@
 
 use crate::fun::{book_to_nets, net_to_term::net_to_term, term_to_net::Labels, Book, Ctx, Term};
 use diagnostics::{Diagnostics, DiagnosticsConfig, ERR_INDENT_SIZE};
-use fun::{DefType, Name};
 use hvm::{
   add_recursive_priority::add_recursive_priority,
   ast::Net,
@@ -19,6 +18,7 @@ pub mod diagnostics;
 pub mod fun;
 pub mod hvm;
 pub mod imp;
+pub mod imports;
 pub mod net;
 
 pub use fun::load_book::{load_file_to_book, load_to_book};
@@ -83,7 +83,8 @@ pub fn desugar_book(
   diagnostics_cfg: DiagnosticsConfig,
   args: Option<Vec<Term>>,
 ) -> Result<Diagnostics, Diagnostics> {
-  apply_imports(book, diagnostics_cfg)?;
+  book.apply_imports(diagnostics_cfg)?;
+
   let mut ctx = Ctx::new(book, diagnostics_cfg);
 
   ctx.check_shared_names();
@@ -150,48 +151,6 @@ pub fn desugar_book(
   ctx.book.make_var_names_unique();
 
   if !ctx.info.has_errors() { Ok(ctx.info) } else { Err(ctx.info) }
-}
-
-fn apply_imports(book: &mut Book, diagnostics_cfg: DiagnosticsConfig) -> Result<(), Diagnostics> {
-  for (src, package) in &mut book.imports.pkgs {
-    apply_imports(package, diagnostics_cfg)?;
-
-    let mut ctx = Ctx::new(package, diagnostics_cfg);
-    ctx.resolve_refs()?; // TODO: does not work for adts
-
-    let mut defs = std::mem::take(&mut package.defs);
-
-    for def in defs.values_mut() {
-      match def.def_type {
-        DefType::Normal(..) if book.imports.map.contains_key(&def.name) => {
-          def.def_type = DefType::Import;
-        }
-        DefType::Builtin => {}
-        DefType::Generated => {}
-        DefType::Inaccessible => {}
-        _ => {
-          def.def_type = DefType::Inaccessible;
-
-          // Mangle inaccessible definitions so that users cant call them
-          let new_name = if let Some(n) = package.imports.map.get(&def.name) {
-            Name::new(format!("__{}__", n))
-          } else {
-            Name::new(format!("__{}/{}__", src, def.name))
-          };
-
-          package.imports.map.insert(def.name.clone(), new_name.clone());
-          def.name = new_name;
-        }
-      }
-    }
-
-    for (_, mut def) in defs {
-      def.subst_refs(&package.imports.map);
-      book.defs.insert(def.name.clone(), def);
-    }
-  }
-
-  Ok(())
 }
 
 pub fn run_book_with_fn(
