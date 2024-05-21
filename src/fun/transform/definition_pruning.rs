@@ -1,6 +1,6 @@
 use crate::{
   diagnostics::WarningType,
-  fun::{Adt, Book, Ctx, Name, Term, Visibility, LIST, STRING},
+  fun::{Adt, Book, Ctx, Name, Term, LIST, STRING},
   maybe_grow,
 };
 use indexmap::IndexSet;
@@ -41,14 +41,14 @@ impl Ctx<'_> {
 
     if !prune_all {
       for def in self.book.defs.values() {
-        if !def.builtin && !used.contains_key(&def.name) {
+        if !def.is_builtin() && !used.contains_key(&def.name) {
           self.book.find_used_definitions(&def.rule().body, Used::Needed, &mut used);
         }
       }
     }
 
     for (def_name, def) in &self.book.defs {
-      if !def.builtin && self.book.ctrs.get(def_name).is_some() {
+      if !def.is_builtin() && self.book.ctrs.get(def_name).is_some() {
         used.insert(def_name.clone(), Used::Adt);
       }
     }
@@ -58,7 +58,7 @@ impl Ctx<'_> {
       for (def_name, def) in &self.book.defs {
         // This needs to be done for each rule in case the pass it's ran from has not encoded the pattern match
         // E.g.: the `flatten_rules` golden test
-        if !def.builtin {
+        if !def.is_builtin() {
           for rule in &def.rules {
             match used.entry(def_name.clone()) {
               Entry::Vacant(e) => _ = e.insert(Used::Unused),
@@ -85,9 +85,9 @@ impl Ctx<'_> {
   fn prune_unused(&mut self, unused: impl IntoIterator<Item = Name>, prune_all: bool) {
     for def_name in unused {
       let def = &self.book.defs[&def_name];
-      if prune_all || def.builtin {
+      if prune_all || def.is_builtin() {
         self.book.defs.shift_remove(&def_name);
-      } else if !def_name.is_generated() && !matches!(def.visibility, Visibility::Inaccessible) {
+      } else if !def_name.is_generated() {
         self.info.add_rule_warning("Definition is unused.", WarningType::UnusedDefinition, def_name);
       }
     }

@@ -76,7 +76,7 @@ impl Term {
         };
         let body = Term::rfold_lams(body, free_vars.iter().cloned().map(Some));
         let body = Term::rfold_lams(body, std::mem::take(bind).into_iter());
-        let def = Definition::new(new_nam.clone(), vec![Rule { pats: vec![], body }], false);
+        let def = Definition::new_gen(new_nam.clone(), vec![Rule { pats: vec![], body }], false);
         new_defs.push(def);
 
         // Call the new function in the original term.
